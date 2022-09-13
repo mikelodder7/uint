@@ -412,7 +412,8 @@ impl Uint {
         self.to_bytes_with_length(buffer.as_mut());
     }
 
-    fn to_bytes_with_length(self, buffer: &mut [u8]) -> usize {
+    /// Same as `to_bytes` except it returns how many bytes were actually used
+    pub fn to_bytes_with_length(self, buffer: &mut [u8]) -> usize {
         let mut i = 0;
         let mut x = self.0;
 
