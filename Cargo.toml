@@ -15,14 +15,15 @@ name = "uint-zigzag"
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 repository = "https://github.com/mikelodder7/uint"
-version = "0.2.0"
+version = "0.2.1"
 
 [features]
 default = []
-alloc = []
-std = []
+alloc = ["core2/alloc"]
+std = ["core2/std"]
 
 [dependencies]
+core2 = { version = "0.4", default-features = false }
 serde = { version = "1", features = ["serde_derive"], optional = true }
 
 [package.metadata.docs.rs]

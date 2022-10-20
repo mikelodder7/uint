@@ -21,6 +21,8 @@ use core::{
     iter::{Product, Sum},
     ops::*,
 };
+use core2::io::{Error, ErrorKind, Read, Write};
+
 #[cfg(feature = "serde")]
 use serde::{
     de::{Error as DError, Visitor},
@@ -33,10 +35,9 @@ extern crate alloc;
 extern crate std;
 
 #[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 #[cfg(feature = "std")]
-use std::vec::Vec;
-
+use std::{boxed::Box, vec::Vec};
 
 /// Uint implements zig-zag encoding to represent integers as binary sequences
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -102,6 +103,26 @@ impl TryFrom<&[u8]> for Uint {
             i += 1;
         }
         Err("invalid byte sequence")
+    }
+}
+
+#[cfg_attr(docsrs, doc(cfg(any(feature = "alloc", feature = "std"))))]
+#[cfg(any(feature = "alloc", feature = "std"))]
+impl TryFrom<&Vec<u8>> for Uint {
+    type Error = &'static str;
+
+    fn try_from(value: &Vec<u8>) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_slice())
+    }
+}
+
+#[cfg_attr(docsrs, doc(cfg(any(feature = "alloc", feature = "std"))))]
+#[cfg(any(feature = "alloc", feature = "std"))]
+impl TryFrom<&Box<Vec<u8>>> for Uint {
+    type Error = &'static str;
+
+    fn try_from(value: &Box<Vec<u8>>) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_slice())
     }
 }
 
@@ -448,6 +469,31 @@ impl Uint {
         let mut output = [0u8; Self::MAX_BYTES];
         let i = self.to_bytes_with_length(&mut output);
         output[..i].to_vec()
+    }
+
+    /// Write bytes to a stream
+    pub fn to_writer<W: Write>(&self, writer: &mut W) -> Result<usize, Error> {
+        let mut output = [0u8; Self::MAX_BYTES];
+        let length = self.to_bytes_with_length(&mut output);
+        writer.write(&output[..length])
+    }
+
+    /// Read bytes from a stream
+    pub fn from_reader<R: Read>(reader: &mut R) -> Result<Self, Error> {
+        let mut output = [0u8; Self::MAX_BYTES];
+        let mut i = 0;
+        while i < Self::MAX_BYTES {
+            reader.read_exact(&mut output[i..i + 1])?;
+            if Self::peek(&output[..i]).is_some() {
+                break;
+            }
+            i += 1;
+        }
+        if i == Self::MAX_BYTES {
+            Err(Error::new(ErrorKind::InvalidData, "invalid byte sequence"))
+        } else {
+            Self::try_from(&output[..i]).map_err(|m| Error::new(ErrorKind::InvalidData, m))
+        }
     }
 }
 
